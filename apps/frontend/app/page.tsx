@@ -18,8 +18,9 @@ export default function Home() {
     useEffect(() => {
         const fetchHealth = async () => {
             try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
                 const response = await fetch(
-                    "http://localhost:3001/api/health"
+                    `${apiUrl}/api/health`
                 );
                 if (!response.ok) {
                     throw new Error("Failed to fetch health status");
