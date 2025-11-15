@@ -25,12 +25,11 @@ module.exports = {
         },
         {
             name: "estafee-frontend",
-            script: "./node_modules/.bin/next",
+            script: "pnpm",
             args: "start",
             cwd: "/var/www/estafee/estafee-monorepo/apps/frontend",
             instances: 1,
             exec_mode: "fork",
-            interpreter: "node",
             env: {
                 NODE_ENV: "production",
                 PORT: 3000,
