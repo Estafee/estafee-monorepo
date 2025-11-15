@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@lending/types": ["packages/types/src"],
+      "@lending/utils": ["packages/utils/src"]
+    }
+  }
+}
