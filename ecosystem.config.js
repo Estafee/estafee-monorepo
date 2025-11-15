@@ -25,7 +25,7 @@ module.exports = {
         },
         {
             name: "estafee-frontend",
-            script: "../../node_modules/next/dist/bin/next",
+            script: "./node_modules/.bin/next",
             args: "start",
             cwd: "/var/www/estafee/estafee-monorepo/apps/frontend",
             instances: 1,
