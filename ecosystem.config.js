@@ -3,7 +3,7 @@ module.exports = {
         {
             name: "estafee-backend",
             script: "./apps/backend/dist/main.js",
-            cwd: "/var/www/estafee",
+            cwd: "/var/www/estafee/estafee-monorepo",
             instances: 1,
             exec_mode: "fork",
             env: {
@@ -27,7 +27,7 @@ module.exports = {
             name: "estafee-frontend",
             script: "node_modules/next/dist/bin/next",
             args: "start",
-            cwd: "/var/www/estafee/apps/frontend",
+            cwd: "/var/www/estafee/estafee-monorepo/apps/frontend",
             instances: 1,
             exec_mode: "fork",
             env: {
