@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-APP_DIR="/var/www/estafee"
+APP_DIR="/var/www/estafee/estafee-monorepo"
 BACKEND_DIR="$APP_DIR/apps/backend"
 FRONTEND_DIR="$APP_DIR/apps/frontend"
 
