@@ -1,0 +1,130 @@
+// apps/backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  name            String
+  role            String    @default("user") // "admin" | "user"
+  
+  // Data Profil Tambahan (Gabungan konsep Store)
+  address         String?
+  phoneNumber     String?
+  bio             String?   // Deskripsi singkat (mirip store_description)
+  avatarUrl       String?   // Foto profil/toko
+  balance         Decimal   @default(0) // Dompet digital
+
+  // Relasi
+  items           Item[]        // Barang yang dia sewakan (Inventory)
+  cart            CartItem[]    // Keranjang sewa dia
+  rentalsAsLendee Rental[]      @relation("RentalsAsLendee") // Dia menyewa barang orang
+  rentalsAsLender Rental[]      @relation("RentalsAsLender") // Barang dia disewa orang
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+
+model Item {
+  id              String    @id @default(uuid())
+  title           String    // product_name
+  description     String    @db.Text
+  pricePerDay     Decimal   // price (sewa harian)
+  securityDeposit Decimal   @default(0) // Uang jaminan (khusus lending)
+  stock           Int       @default(1) // Jumlah barang yang tersedia
+  images          String[]  // Array URL foto barang (main_image_path)
+  condition       String    // "New", "Good", "Fair"
+  isAvailable     Boolean   @default(true) // Status aktif/non-aktif
+
+  // Relasi
+  owner           User      @relation(fields: [ownerId], references: [id])
+  ownerId         String    // store_id diganti ownerId
+
+  categories      Category[] // Relasi ke Category (Many-to-Many)
+  cartItems       CartItem[]
+  rentalItems     RentalItem[]
+
+  deletedAt       DateTime? // Soft delete
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+
+model Category {
+  id    String @id @default(uuid())
+  name  String @unique
+  slug  String @unique
+  
+  items Item[] // Prisma otomatis bikin tabel penghubung (Category_Item) di database
+}
+
+
+model CartItem {
+  id        String   @id @default(uuid())
+  quantity  Int
+  startDate DateTime // User pilih tanggal sewa sejak di keranjang
+  endDate   DateTime
+  
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   // buyer_id
+
+  item      Item     @relation(fields: [itemId], references: [id])
+  itemId    String   // product_id
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Rental {
+  id              String    @id @default(uuid())
+  // order_id, total_price, status, dll
+  
+  status          String    @default("WAITING_APPROVAL") 
+  // Status: WAITING_APPROVAL, APPROVED, ON_DELIVERY (PICKED_UP), RECEIVED (RETURNED), COMPLETED, REJECTED
+  
+  totalPrice      Decimal   // Total biaya sewa
+  totalDeposit    Decimal   // Total jaminan yang ditahan
+  shippingAddress String?   // Alamat pengiriman/COD
+  rejectionReason String?   // reject_reason
+  
+  // Waktu Penting
+  startDate       DateTime  // Mulai sewa
+  endDate         DateTime  // Selesai sewa
+  confirmedAt     DateTime? // Waktu seller approve
+  returnedAt      DateTime? // Waktu barang dikembalikan (received_at)
+
+  // Relasi
+  lendee          User      @relation("RentalsAsLendee", fields: [lendeeId], references: [id])
+  lendeeId        String    // buyer_id
+
+  lender          User      @relation("RentalsAsLender", fields: [lenderId], references: [id])
+  lenderId        String    // store_id
+
+  items           RentalItem[] // Detail barang apa saja yang disewa
+
+  createdAt       DateTime  @default(now())
+}
+
+
+model RentalItem {
+  id            String   @id @default(uuid())
+  quantity      Int
+  priceAtRental Decimal  // Harga per hari saat transaksi terjadi (price_at_order)
+  subtotal      Decimal  // (priceAtRental * quantity * durasi hari)
+
+  rental        Rental   @relation(fields: [rentalId], references: [id])
+  rentalId      String   // order_id
+
+  item          Item     @relation(fields: [itemId], references: [id])
+  itemId        String   // product_id
+}
