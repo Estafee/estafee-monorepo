@@ -21,10 +21,21 @@ export class ItemsService {
   }
 
   async findOne(id: string) {
-    return this.prisma.item.findUnique({
+    const item = await this.prisma.item.findUnique({
       where: { id },
-      include: { owner: true, rentalItems: true } // Pastikan 'rentalItems' sesuai schema
+      include: { 
+        owner: true // 👈 PENTING: Include data pemilik agar bisa tampilkan lokasi & nama penjual
+      }, 
     });
+    
+    // Konversi Decimal/BigInt jika perlu (seperti sebelumnya)
+    if (item) {
+      return {
+        ...item,
+        pricePerDay: Number(item.pricePerDay),
+      };
+    }
+    return item;
   }
 
   async update(id: string, updateItemDto: UpdateItemDto) {

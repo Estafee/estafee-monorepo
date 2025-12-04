@@ -1,5 +1,3 @@
-// apps/backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,121 +8,141 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  password        String
-  name            String
-  role            String    @default("user") // "admin" | "user"
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          String    @default("user") // "admin" | "user"
   
-  // Data Profil Tambahan (Gabungan konsep Store)
-  address         String?
-  phoneNumber     String?
-  bio             String?   // Deskripsi singkat (mirip store_description)
-  avatarUrl       String?   // Foto profil/toko
-  balance         Decimal   @default(0) // Dompet digital
+  // Profile & Branding
+  address       String?
+  phoneNumber   String?
+  bio           String?
+  avatarUrl     String?
+  bannerUrl     String?
+  isVerified    Boolean   @default(false)
+  identityCard  String?   // URL foto KTP/Identitas
+  balance       Decimal   @default(0)
+
+  // Payment Info (Rekening Pencairan)
+  bankName      String?
+  bankAccount   String?
+  bankHolder    String?
 
   // Relasi
-  items           Item[]        // Barang yang dia sewakan (Inventory)
-  cart            CartItem[]    // Keranjang sewa dia
-  rentalsAsLendee Rental[]      @relation("RentalsAsLendee") // Dia menyewa barang orang
-  rentalsAsLender Rental[]      @relation("RentalsAsLender") // Barang dia disewa orang
+  items           Item[]
+  cart            CartItem[]
+  rentalsAsLendee Rental[]  @relation("RentalsAsLendee")
+  rentalsAsLender Rental[]  @relation("RentalsAsLender")
+  reviewsWritten  Review[]  @relation("WrittenReviews")
+  reviewsReceived Review[]  @relation("ReceivedReviews")
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
-
 
 model Item {
   id              String    @id @default(uuid())
-  title           String    // product_name
+  title           String
   description     String    @db.Text
-  pricePerDay     Decimal   // price (sewa harian)
-  securityDeposit Decimal   @default(0) // Uang jaminan (khusus lending)
-  stock           Int       @default(1) // Jumlah barang yang tersedia
-  images          String[]  // Array URL foto barang (main_image_path)
-  condition       String    // "New", "Good", "Fair"
-  isAvailable     Boolean   @default(true) // Status aktif/non-aktif
+  pricePerDay     Decimal
+  securityDeposit Decimal   @default(0)
+  stock           Int       @default(1)
+  images          String[]
+  condition       String
+  isAvailable     Boolean   @default(true)
 
-  // Relasi
+  ownerId         String
   owner           User      @relation(fields: [ownerId], references: [id])
-  ownerId         String    // store_id diganti ownerId
 
-  categories      Category[] // Relasi ke Category (Many-to-Many)
+  categories      Category[]
   cartItems       CartItem[]
   rentalItems     RentalItem[]
+  reviews         Review[]
 
-  deletedAt       DateTime? // Soft delete
+  deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
-
 
 model Category {
   id    String @id @default(uuid())
   name  String @unique
   slug  String @unique
   
-  items Item[] // Prisma otomatis bikin tabel penghubung (Category_Item) di database
+  items Item[]
 }
-
 
 model CartItem {
   id        String   @id @default(uuid())
   quantity  Int
-  startDate DateTime // User pilih tanggal sewa sejak di keranjang
+  startDate DateTime
   endDate   DateTime
   
+  userId    String
   user      User     @relation(fields: [userId], references: [id])
-  userId    String   // buyer_id
 
+  itemId    String
   item      Item     @relation(fields: [itemId], references: [id])
-  itemId    String   // product_id
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-
 model Rental {
   id              String    @id @default(uuid())
-  // order_id, total_price, status, dll
+  status          String    @default("WAITING_APPROVAL")
+  totalPrice      Decimal
+  totalDeposit    Decimal
+  shippingAddress String?
+  rejectionReason String?
   
-  status          String    @default("WAITING_APPROVAL") 
-  // Status: WAITING_APPROVAL, APPROVED, ON_DELIVERY (PICKED_UP), RECEIVED (RETURNED), COMPLETED, REJECTED
-  
-  totalPrice      Decimal   // Total biaya sewa
-  totalDeposit    Decimal   // Total jaminan yang ditahan
-  shippingAddress String?   // Alamat pengiriman/COD
-  rejectionReason String?   // reject_reason
-  
-  // Waktu Penting
-  startDate       DateTime  // Mulai sewa
-  endDate         DateTime  // Selesai sewa
-  confirmedAt     DateTime? // Waktu seller approve
-  returnedAt      DateTime? // Waktu barang dikembalikan (received_at)
+  startDate       DateTime
+  endDate         DateTime
+  confirmedAt     DateTime?
+  returnedAt      DateTime?
 
-  // Relasi
+  lendeeId        String
   lendee          User      @relation("RentalsAsLendee", fields: [lendeeId], references: [id])
-  lendeeId        String    // buyer_id
 
+  lenderId        String
   lender          User      @relation("RentalsAsLender", fields: [lenderId], references: [id])
-  lenderId        String    // store_id
 
-  items           RentalItem[] // Detail barang apa saja yang disewa
+  items           RentalItem[]
+  review          Review?
 
   createdAt       DateTime  @default(now())
 }
 
-
 model RentalItem {
   id            String   @id @default(uuid())
   quantity      Int
-  priceAtRental Decimal  // Harga per hari saat transaksi terjadi (price_at_order)
-  subtotal      Decimal  // (priceAtRental * quantity * durasi hari)
+  priceAtRental Decimal
+  subtotal      Decimal
 
+  rentalId      String
   rental        Rental   @relation(fields: [rentalId], references: [id])
-  rentalId      String   // order_id
 
+  itemId        String
   item          Item     @relation(fields: [itemId], references: [id])
-  itemId        String   // product_id
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  rating       Int
+  comment      String?
+  
+  reviewerId   String
+  reviewer     User     @relation("WrittenReviews", fields: [reviewerId], references: [id])
+  
+  targetUserId String?
+  targetUser   User?    @relation("ReceivedReviews", fields: [targetUserId], references: [id])
+
+  itemId       String?
+  item         Item?    @relation(fields: [itemId], references: [id])
+
+  rentalId     String   @unique
+  rental       Rental   @relation(fields: [rentalId], references: [id])
+
+  createdAt    DateTime @default(now())
 }
