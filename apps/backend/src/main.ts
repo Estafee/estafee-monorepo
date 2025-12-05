@@ -1,9 +1,16 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common'; // 1. Wajib import ini
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Enable global validation pipe for DTOs
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true, // Strip properties that don't have decorators
+    forbidNonWhitelisted: true, // Throw error if non-whitelisted properties are present
+    transform: true, // Automatically transform payloads to DTO instances
+  }));
 
   // Enable CORS for frontend communication
   app.enableCors({

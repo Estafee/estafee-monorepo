@@ -137,14 +137,75 @@ EOF
 cat > apps/backend/.env.production << 'EOF'
 NODE_ENV=production
 PORT=3001
-# Add your database credentials here
-# DATABASE_URL=postgresql://user:password@localhost:5432/estafee
-# JWT_SECRET=your-super-secret-jwt-key-change-this
-# FRONTEND_URL=https://estafee.id
+
+# Database Configuration (PostgreSQL with Prisma)
+DATABASE_URL="postgresql://estafee_user:your_secure_password@localhost:5432/estafee_db"
+
+# JWT Secret (generate with: openssl rand -base64 48)
+JWT_SECRET=your-super-secret-jwt-key-change-this
+
+# Frontend URL for CORS
+FRONTEND_URL=https://estafee.id
 EOF
 ```
 
-### 3.5 Build applications
+**Important:** Replace `your_secure_password` and `your-super-secret-jwt-key-change-this` with actual secure values.
+
+### 3.5 Setup PostgreSQL Database
+
+**Install PostgreSQL:**
+
+```bash
+# Install PostgreSQL
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+
+# Start and enable PostgreSQL
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+**Create database and user:**
+
+```bash
+# Switch to postgres user
+sudo -u postgres psql
+
+# In psql prompt, run:
+CREATE DATABASE estafee_db;
+CREATE USER estafee_user WITH ENCRYPTED PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE estafee_db TO estafee_user;
+
+# For PostgreSQL 15+, grant schema permissions
+\c estafee_db
+GRANT ALL ON SCHEMA public TO estafee_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO estafee_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO estafee_user;
+
+# Exit psql
+\q
+```
+
+### 3.6 Generate Prisma Client and Run Migrations
+
+```bash
+cd /var/www/estafee/estafee-monorepo
+
+# Generate Prisma Client
+cd apps/backend
+npx prisma generate
+
+# Run database migrations
+npx prisma db push
+
+# Optional: Seed database if you have seed data
+# npx prisma db seed
+
+# Go back to root
+cd ../..
+```
+
+### 3.7 Build applications
 
 ```bash
 pnpm build
@@ -301,7 +362,15 @@ git pull origin main
 # Install new dependencies
 pnpm install
 
-# Rebuild
+# Generate Prisma Client (if schema changed)
+cd apps/backend
+npx prisma generate
+
+# Run database migrations (if schema changed)
+npx prisma db push
+
+# Go back to root and rebuild
+cd ../..
 pnpm build
 
 # Restart apps
@@ -479,12 +548,52 @@ Consider using Cloudflare for:
 
 ## Next Steps
 
-1. **Database Setup**: Install and configure PostgreSQL/MongoDB if needed
-2. **Email Service**: Configure email sending (SendGrid, AWS SES, etc.)
-3. **File Storage**: Setup S3 or similar for user uploads
-4. **CI/CD**: Automate deployments with GitHub Actions
-5. **Monitoring**: Setup error tracking (Sentry) and analytics
-6. **Scaling**: Consider load balancing for high traffic
+1. **Database Setup**: ✅ PostgreSQL configured with Prisma
+2. **Database Migrations**: Run `npx prisma studio` to view/edit data in browser
+3. **Email Service**: Configure email sending (SendGrid, AWS SES, etc.)
+4. **File Storage**: Setup S3 or similar for user uploads (item images, avatars)
+5. **CI/CD**: Automate deployments with GitHub Actions
+6. **Monitoring**: Setup error tracking (Sentry) and analytics
+7. **Scaling**: Consider load balancing for high traffic
+
+---
+
+## Database Management
+
+### View and Edit Data (Prisma Studio)
+
+```bash
+cd /var/www/estafee/estafee-monorepo/apps/backend
+
+# Start Prisma Studio (opens at localhost:5555)
+npx prisma studio
+
+# Access via SSH tunnel from your local machine:
+# ssh -L 5555:localhost:5555 root@your-vps-ip
+# Then open http://localhost:5555 in your browser
+```
+
+### Backup Database
+
+```bash
+# Create backup
+pg_dump -U estafee_user -d estafee_db -h localhost -F c -f ~/estafee_backup_$(date +%Y%m%d).dump
+
+# Restore backup
+pg_restore -U estafee_user -d estafee_db -h localhost -c ~/estafee_backup_YYYYMMDD.dump
+```
+
+### Reset Database (Development only!)
+
+```bash
+cd /var/www/estafee/estafee-monorepo/apps/backend
+
+# Reset database and reapply migrations
+npx prisma migrate reset
+
+# Or just push schema changes
+npx prisma db push
+```
 
 ---
 
