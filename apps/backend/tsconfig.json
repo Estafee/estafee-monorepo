@@ -1,5 +1,4 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "node",
@@ -21,9 +20,12 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
+    "lib": ["ES2023"],
     "paths": {
       "@lending/types": ["../../packages/types/src"],
       "@lending/utils": ["../../packages/utils/src"]
     }
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }
