@@ -1,4 +1,8 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
@@ -54,8 +58,28 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: { id },
       include: {
-        items: true,            // Barang yang dia sewakan
-        rentalsAsLendee: true,  // Riwayat dia menyewa
+        items: true, // Barang yang dia sewakan
+        rentalsAsLendee: true, // Riwayat dia menyewa
+      },
+    });
+  }
+
+  // Top up user balance
+  async topUp(id: string, amount: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        balance: {
+          increment: amount,
+        },
       },
     });
   }

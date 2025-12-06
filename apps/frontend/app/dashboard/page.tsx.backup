@@ -21,14 +21,9 @@ export default function DashboardPage() {
     const { user, logout, refreshUser, isLoading } = useAuth();
     const router = useRouter();
 
-    // Tab navigation: 'profile' | 'add_item' | 'manage_items' | 'balance' | 'rentals' | 'my_rentals'
+    // Tab navigation: 'profile' | 'add_item' | 'manage_items' | 'balance'
     const [activeTab, setActiveTab] = useState<
-        | "profile"
-        | "add_item"
-        | "manage_items"
-        | "balance"
-        | "rentals"
-        | "my_rentals"
+        "profile" | "add_item" | "manage_items" | "balance"
     >("manage_items");
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{
@@ -51,12 +46,6 @@ export default function DashboardPage() {
 
     // State List Barang User (Untuk Tab Kelola Barang)
     const [userItems, setUserItems] = useState<Item[]>([]);
-
-    // State for Rentals (as lender - seller)
-    const [rentals, setRentals] = useState<any[]>([]);
-
-    // State for My Rentals (as lendee - borrower)
-    const [myRentals, setMyRentals] = useState<any[]>([]);
 
     // State Form Barang (Dipakai untuk Tambah & Edit)
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -114,138 +103,8 @@ export default function DashboardPage() {
     useEffect(() => {
         if (user) {
             fetchUserData();
-            fetchRentals();
-            fetchMyRentals();
         }
     }, [user]);
-
-    // Auto-refresh balance every 10 seconds to sync with database
-    useEffect(() => {
-        if (!user) return;
-
-        const interval = setInterval(() => {
-            refreshUser();
-        }, 10000); // Refresh every 10 seconds
-
-        return () => clearInterval(interval);
-    }, [user, refreshUser]);
-
-    // Refresh data when switching to My Rentals tab
-    useEffect(() => {
-        if (activeTab === "my_rentals" && user) {
-            refreshUser();
-            fetchMyRentals();
-        }
-    }, [activeTab]);
-
-    // Fetch rentals where user is the lender (seller)
-    const fetchRentals = async () => {
-        if (!user) return;
-
-        try {
-            const apiUrl =
-                process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-            const res = await fetch(
-                `${apiUrl}/api/rentals?lenderId=${user.id}`
-            );
-
-            if (res.ok) {
-                const data = await res.json();
-                setRentals(data);
-            }
-        } catch (err) {
-            console.error("Error fetching rentals:", err);
-        }
-    };
-
-    // Fetch rentals where user is the lendee (borrower)
-    const fetchMyRentals = async () => {
-        if (!user) return;
-
-        try {
-            const apiUrl =
-                process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-            const res = await fetch(
-                `${apiUrl}/api/rentals?lendeeId=${user.id}`
-            );
-
-            if (res.ok) {
-                const data = await res.json();
-                setMyRentals(data);
-            }
-        } catch (err) {
-            console.error("Error fetching my rentals:", err);
-        }
-    };
-
-    // Approve rental
-    const handleApproveRental = async (rentalId: string) => {
-        setLoading(true);
-        const loadingToast = toast.loading("Approving rental...");
-
-        try {
-            const apiUrl =
-                process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-            const res = await fetch(
-                `${apiUrl}/api/rentals/${rentalId}/approve`,
-                {
-                    method: "PATCH",
-                }
-            );
-
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message || "Failed to approve rental");
-            }
-
-            toast.success("Rental approved successfully!", {
-                id: loadingToast,
-            });
-            fetchRentals(); // Refresh rentals list
-            await refreshUser(); // Refresh user balance
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Unknown error";
-            toast.error(`Failed to approve: ${errorMessage}`, {
-                id: loadingToast,
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Reject rental
-    const handleRejectRental = async (rentalId: string) => {
-        setLoading(true);
-        const loadingToast = toast.loading("Rejecting rental...");
-
-        try {
-            const apiUrl =
-                process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-            const res = await fetch(
-                `${apiUrl}/api/rentals/${rentalId}/reject`,
-                {
-                    method: "PATCH",
-                }
-            );
-
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message || "Failed to reject rental");
-            }
-
-            toast.success("Rental rejected", { id: loadingToast });
-            fetchRentals(); // Refresh rentals list
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Unknown error";
-            toast.error(`Failed to reject: ${errorMessage}`, {
-                id: loadingToast,
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // --- 2. HANDLER UPDATE PROFIL ---
     const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -383,10 +242,9 @@ export default function DashboardPage() {
 
         setLoading(true);
         const loadingToast = toast.loading("Processing top-up...");
-
+        
         try {
-            const apiUrl =
-                process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
             const res = await fetch(`${apiUrl}/api/users/${user.id}/topup`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -395,26 +253,20 @@ export default function DashboardPage() {
 
             if (!res.ok) {
                 const errorData = await res.json();
-                throw new Error(
-                    errorData.message || "Failed to top up balance"
-                );
+                throw new Error(errorData.message || "Failed to top up balance");
             }
 
             setTopUpAmount(0);
-
+            
             // Refresh auth context to update navbar and dashboard balance
             await refreshUser();
-
-            toast.success(
-                `Successfully added Rp ${topUpAmount.toLocaleString()}!`,
-                {
-                    id: loadingToast,
-                }
-            );
+            
+            toast.success(`Successfully added Rp ${topUpAmount.toLocaleString()}!`, {
+                id: loadingToast,
+            });
         } catch (err) {
-            const errorMessage =
-                err instanceof Error ? err.message : "Unknown error";
-            console.error("Top-up error:", err);
+            const errorMessage = err instanceof Error ? err.message : "Unknown error";
+            console.error('Top-up error:', err);
             toast.error(`Failed to top up: ${errorMessage}`, {
                 id: loadingToast,
             });
@@ -536,7 +388,7 @@ export default function DashboardPage() {
                                         : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                                 }`}
                             >
-                                Kelola Barang
+                                📦 Kelola Barang
                             </button>
 
                             <button
@@ -550,7 +402,7 @@ export default function DashboardPage() {
                                         : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                                 }`}
                             >
-                                Tambah Barang
+                                ➕ Tambah Barang
                             </button>
 
                             <button
@@ -564,7 +416,7 @@ export default function DashboardPage() {
                                         : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                                 }`}
                             >
-                                Edit Profil
+                                ✏️ Edit Profil
                             </button>
 
                             <button
@@ -578,59 +430,7 @@ export default function DashboardPage() {
                                         : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                                 }`}
                             >
-                                Top Up Balance
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    setActiveTab("rentals");
-                                    resetItemForm();
-                                }}
-                                className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-3 ${
-                                    activeTab === "rentals"
-                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                                        : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                                Rental Requests
-                                {rentals.filter(
-                                    (r) => r.status === "WAITING_APPROVAL"
-                                ).length > 0 && (
-                                    <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                                        {
-                                            rentals.filter(
-                                                (r) =>
-                                                    r.status ===
-                                                    "WAITING_APPROVAL"
-                                            ).length
-                                        }
-                                    </span>
-                                )}
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    setActiveTab("my_rentals");
-                                    resetItemForm();
-                                }}
-                                className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-3 ${
-                                    activeTab === "my_rentals"
-                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                                        : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                                My Rentals
-                                {myRentals.filter(
-                                    (r) => r.status === "APPROVED"
-                                ).length > 0 && (
-                                    <span className="ml-auto bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                                        {
-                                            myRentals.filter(
-                                                (r) => r.status === "APPROVED"
-                                            ).length
-                                        }
-                                    </span>
-                                )}
+                                💰 Top Up Balance
                             </button>
 
                             <div className="border-t border-gray-100 my-2 pt-2">
@@ -640,7 +440,7 @@ export default function DashboardPage() {
                                         target="_blank"
                                         className="w-full text-left px-4 py-3 rounded-xl font-medium text-gray-500 hover:bg-gray-50 transition-all duration-200 flex items-center gap-3"
                                     >
-                                        Lihat Profil Publik
+                                        👀 Lihat Profil Publik
                                     </a>
                                 )}
                             </div>
@@ -1062,14 +862,9 @@ export default function DashboardPage() {
 
                                 {/* Current Balance Display */}
                                 <div className="mb-8 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
-                                    <p className="text-sm text-gray-600 mb-2">
-                                        Current Balance
-                                    </p>
+                                    <p className="text-sm text-gray-600 mb-2">Current Balance</p>
                                     <p className="text-4xl font-bold text-gray-900">
-                                        Rp{" "}
-                                        {(user?.balance || 0).toLocaleString(
-                                            "id-ID"
-                                        )}
+                                        Rp {(user?.balance || 0).toLocaleString('id-ID')}
                                     </p>
                                 </div>
 
@@ -1079,25 +874,19 @@ export default function DashboardPage() {
                                         Quick Top-Up
                                     </label>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        {[50000, 100000, 250000, 500000].map(
-                                            (amount) => (
-                                                <button
-                                                    key={amount}
-                                                    onClick={() =>
-                                                        setTopUpAmount(amount)
-                                                    }
-                                                    className={`px-4 py-3 rounded-xl font-semibold transition-all ${
-                                                        topUpAmount === amount
-                                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-                                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                                    }`}
-                                                >
-                                                    Rp{" "}
-                                                    {(amount / 1000).toFixed(0)}
-                                                    K
-                                                </button>
-                                            )
-                                        )}
+                                        {[50000, 100000, 250000, 500000].map((amount) => (
+                                            <button
+                                                key={amount}
+                                                onClick={() => setTopUpAmount(amount)}
+                                                className={`px-4 py-3 rounded-xl font-semibold transition-all ${
+                                                    topUpAmount === amount
+                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                Rp {(amount / 1000).toFixed(0)}K
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -1108,12 +897,8 @@ export default function DashboardPage() {
                                     </label>
                                     <input
                                         type="number"
-                                        value={topUpAmount || ""}
-                                        onChange={(e) =>
-                                            setTopUpAmount(
-                                                Number(e.target.value)
-                                            )
-                                        }
+                                        value={topUpAmount || ''}
+                                        onChange={(e) => setTopUpAmount(Number(e.target.value))}
                                         placeholder="Enter amount..."
                                         className="w-full px-4 py-3 rounded-xl bg-gray-50 border-gray-200 border text-gray-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                                     />
@@ -1123,30 +908,19 @@ export default function DashboardPage() {
                                 {topUpAmount > 0 && (
                                     <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
                                         <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm text-gray-600">
-                                                Top-Up Amount
-                                            </span>
+                                            <span className="text-sm text-gray-600">Top-Up Amount</span>
                                             <span className="font-semibold text-gray-900">
-                                                Rp{" "}
-                                                {topUpAmount.toLocaleString(
-                                                    "id-ID"
-                                                )}
+                                                Rp {topUpAmount.toLocaleString('id-ID')}
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center pt-2 border-t border-blue-200">
-                                            <span className="text-sm font-semibold text-gray-700">
-                                                New Balance
-                                            </span>
+                                            <span className="text-sm font-semibold text-gray-700">New Balance</span>
+                                        <div className="flex justify-between items-center pt-2 border-t border-blue-200">
+                                            <span className="text-sm font-semibold text-gray-700">New Balance</span>
                                             <span className="font-bold text-indigo-600 text-lg">
-                                                Rp{" "}
-                                                {(
-                                                    Number(user?.balance || 0) +
-                                                    Number(topUpAmount)
-                                                ).toLocaleString("id-ID")}
+                                                Rp {((user?.balance || 0) + topUpAmount).toLocaleString('id-ID')}
                                             </span>
                                         </div>
-                                    </div>
-                                )}
 
                                 {/* Top-Up Button */}
                                 <button
@@ -1154,418 +928,12 @@ export default function DashboardPage() {
                                     disabled={loading || topUpAmount <= 0}
                                     className="w-full bg-indigo-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
                                 >
-                                    {loading
-                                        ? "Processing..."
-                                        : `Top Up Rp ${topUpAmount.toLocaleString(
-                                              "id-ID"
-                                          )}`}
+                                    {loading ? 'Processing...' : `Top Up Rp ${topUpAmount.toLocaleString('id-ID')}`}
                                 </button>
 
                                 <p className="text-xs text-gray-500 text-center mt-4">
-                                    💡 This is a simulated top-up for demo
-                                    purposes
+                                    💡 This is a simulated top-up for demo purposes
                                 </p>
-                            </div>
-                        )}
-
-                        {/* RENTAL REQUESTS TAB */}
-                        {activeTab === "rentals" && (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                    📋 Rental Requests
-                                </h2>
-
-                                {rentals.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <p className="text-gray-500">
-                                            No rental requests yet
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {rentals.map((rental) => (
-                                            <div
-                                                key={rental.id}
-                                                className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                                            >
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <h3 className="font-semibold text-lg text-gray-900">
-                                                            Rental Request
-                                                        </h3>
-                                                        <p className="text-sm text-gray-500">
-                                                            ID:{" "}
-                                                            {rental.id.slice(
-                                                                0,
-                                                                8
-                                                            )}
-                                                            ...
-                                                        </p>
-                                                    </div>
-                                                    <span
-                                                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                            rental.status ===
-                                                            "WAITING_APPROVAL"
-                                                                ? "bg-yellow-100 text-yellow-700"
-                                                                : rental.status ===
-                                                                  "APPROVED"
-                                                                ? "bg-green-100 text-green-700"
-                                                                : rental.status ===
-                                                                  "REJECTED"
-                                                                ? "bg-red-100 text-red-700"
-                                                                : "bg-gray-100 text-gray-700"
-                                                        }`}
-                                                    >
-                                                        {rental.status.replace(
-                                                            "_",
-                                                            " "
-                                                        )}
-                                                    </span>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Renter
-                                                        </p>
-                                                        <p className="font-medium">
-                                                            {rental.lendee
-                                                                ?.name ||
-                                                                "Unknown"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Period
-                                                        </p>
-                                                        <p className="font-medium">
-                                                            {new Date(
-                                                                rental.startDate
-                                                            ).toLocaleDateString()}{" "}
-                                                            -{" "}
-                                                            {new Date(
-                                                                rental.endDate
-                                                            ).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Total Price
-                                                        </p>
-                                                        <p className="font-medium text-green-600">
-                                                            Rp{" "}
-                                                            {rental.totalPrice.toLocaleString(
-                                                                "id-ID"
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Deposit
-                                                        </p>
-                                                        <p className="font-medium">
-                                                            Rp{" "}
-                                                            {rental.totalDeposit.toLocaleString(
-                                                                "id-ID"
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {rental.items &&
-                                                    rental.items.length > 0 && (
-                                                        <div className="mb-4">
-                                                            <p className="text-sm text-gray-600 mb-2">
-                                                                Items
-                                                            </p>
-                                                            <div className="space-y-2">
-                                                                {rental.items.map(
-                                                                    (
-                                                                        rentalItem: any
-                                                                    ) => (
-                                                                        <div
-                                                                            key={
-                                                                                rentalItem.id
-                                                                            }
-                                                                            className="flex items-center gap-3 bg-gray-50 rounded-lg p-3"
-                                                                        >
-                                                                            {rentalItem
-                                                                                .item
-                                                                                ?.images?.[0] && (
-                                                                                <img
-                                                                                    src={
-                                                                                        rentalItem
-                                                                                            .item
-                                                                                            .images[0]
-                                                                                    }
-                                                                                    alt={
-                                                                                        rentalItem
-                                                                                            .item
-                                                                                            .title
-                                                                                    }
-                                                                                    className="w-12 h-12 object-cover rounded"
-                                                                                />
-                                                                            )}
-                                                                            <div className="flex-1">
-                                                                                <p className="font-medium text-sm">
-                                                                                    {rentalItem
-                                                                                        .item
-                                                                                        ?.title ||
-                                                                                        "Item"}
-                                                                                </p>
-                                                                                <p className="text-xs text-gray-500">
-                                                                                    Rp{" "}
-                                                                                    {rentalItem.priceAtRental.toLocaleString(
-                                                                                        "id-ID"
-                                                                                    )}{" "}
-                                                                                    /
-                                                                                    day
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    )
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                {rental.status ===
-                                                    "WAITING_APPROVAL" && (
-                                                    <div className="flex gap-3 mt-4">
-                                                        <button
-                                                            onClick={() =>
-                                                                handleApproveRental(
-                                                                    rental.id
-                                                                )
-                                                            }
-                                                            disabled={loading}
-                                                            className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-all"
-                                                        >
-                                                            ✓ Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() =>
-                                                                handleRejectRental(
-                                                                    rental.id
-                                                                )
-                                                            }
-                                                            disabled={loading}
-                                                            className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 transition-all"
-                                                        >
-                                                            ✗ Reject
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* MY RENTALS TAB (as borrower/lendee) */}
-                        {activeTab === "my_rentals" && (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                    🛒 My Rentals
-                                </h2>
-
-                                {myRentals.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <p className="text-gray-500">
-                                            You haven't rented any items yet
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {myRentals.map((rental) => (
-                                            <div
-                                                key={rental.id}
-                                                className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                                            >
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <h3 className="font-semibold text-lg text-gray-900">
-                                                            Rental
-                                                        </h3>
-                                                        <p className="text-sm text-gray-500">
-                                                            ID:{" "}
-                                                            {rental.id.slice(
-                                                                0,
-                                                                8
-                                                            )}
-                                                            ...
-                                                        </p>
-                                                    </div>
-                                                    <span
-                                                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                            rental.status ===
-                                                            "WAITING_APPROVAL"
-                                                                ? "bg-yellow-100 text-yellow-700"
-                                                                : rental.status ===
-                                                                  "APPROVED"
-                                                                ? "bg-green-100 text-green-700"
-                                                                : rental.status ===
-                                                                  "REJECTED"
-                                                                ? "bg-red-100 text-red-700"
-                                                                : rental.status ===
-                                                                  "COMPLETED"
-                                                                ? "bg-blue-100 text-blue-700"
-                                                                : "bg-gray-100 text-gray-700"
-                                                        }`}
-                                                    >
-                                                        {rental.status.replace(
-                                                            "_",
-                                                            " "
-                                                        )}
-                                                    </span>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Owner
-                                                        </p>
-                                                        <p className="font-medium">
-                                                            {rental.lender
-                                                                ?.name ||
-                                                                "Unknown"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Period
-                                                        </p>
-                                                        <p className="font-medium">
-                                                            {new Date(
-                                                                rental.startDate
-                                                            ).toLocaleDateString()}{" "}
-                                                            -{" "}
-                                                            {new Date(
-                                                                rental.endDate
-                                                            ).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Total Paid
-                                                        </p>
-                                                        <p className="font-medium text-green-600">
-                                                            Rp{" "}
-                                                            {rental.totalPrice.toLocaleString(
-                                                                "id-ID"
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-gray-600">
-                                                            Deposit
-                                                        </p>
-                                                        <p className="font-medium">
-                                                            Rp{" "}
-                                                            {rental.totalDeposit.toLocaleString(
-                                                                "id-ID"
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {rental.items &&
-                                                    rental.items.length > 0 && (
-                                                        <div className="mb-4">
-                                                            <p className="text-sm text-gray-600 mb-2">
-                                                                Items
-                                                            </p>
-                                                            <div className="space-y-2">
-                                                                {rental.items.map(
-                                                                    (
-                                                                        rentalItem: any
-                                                                    ) => (
-                                                                        <div
-                                                                            key={
-                                                                                rentalItem.id
-                                                                            }
-                                                                            className="flex items-center gap-3 bg-gray-50 rounded-lg p-3"
-                                                                        >
-                                                                            {rentalItem
-                                                                                .item
-                                                                                ?.images?.[0] && (
-                                                                                <img
-                                                                                    src={
-                                                                                        rentalItem
-                                                                                            .item
-                                                                                            .images[0]
-                                                                                    }
-                                                                                    alt={
-                                                                                        rentalItem
-                                                                                            .item
-                                                                                            .title
-                                                                                    }
-                                                                                    className="w-12 h-12 object-cover rounded"
-                                                                                />
-                                                                            )}
-                                                                            <div className="flex-1">
-                                                                                <p className="font-medium text-sm">
-                                                                                    {rentalItem
-                                                                                        .item
-                                                                                        ?.title ||
-                                                                                        "Item"}
-                                                                                </p>
-                                                                                <p className="text-xs text-gray-500">
-                                                                                    Rp{" "}
-                                                                                    {rentalItem.priceAtRental.toLocaleString(
-                                                                                        "id-ID"
-                                                                                    )}{" "}
-                                                                                    /
-                                                                                    day
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    )
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                {rental.status ===
-                                                    "APPROVED" && (
-                                                    <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                                                        <p className="text-sm text-green-800 font-medium">
-                                                            ✓ Rental approved!
-                                                            Your balance has
-                                                            been deducted.
-                                                        </p>
-                                                        <p className="text-xs text-green-600 mt-1">
-                                                            Total paid: Rp{" "}
-                                                            {(
-                                                                rental.totalPrice +
-                                                                rental.totalDeposit
-                                                            ).toLocaleString(
-                                                                "id-ID"
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                )}
-
-                                                {rental.status === "REJECTED" &&
-                                                    rental.rejectionReason && (
-                                                        <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                                                            <p className="text-sm text-red-800 font-medium">
-                                                                ✗ Rental
-                                                                rejected
-                                                            </p>
-                                                            <p className="text-xs text-red-600 mt-1">
-                                                                Reason:{" "}
-                                                                {
-                                                                    rental.rejectionReason
-                                                                }
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         )}
                     </div>
